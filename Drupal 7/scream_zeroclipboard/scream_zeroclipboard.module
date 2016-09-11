@@ -1,0 +1,114 @@
+<?php
+
+/**
+ * @file
+ *
+ * This module provides an integration with the ZeroClipboard JS/Flash library
+ * to allow copying text to clipboard with a button.
+ */
+
+/**
+ * Implementation of hook_init().
+ */
+function scream_zeroclipboard_init() {
+  // Include the JS of the library itself
+  drupal_add_js(libraries_get_path('zeroclipboard') . '/ZeroClipboard.min.js');
+  // Include SWF file
+  $settingdata['moviePath'] = libraries_get_path('zeroclipboard') . '/ZeroClipboard.swf';
+  // Including our JS file
+  drupal_add_js(drupal_get_path('module', 'scream_zeroclipboard') . '/scream_zeroclipboard.js');
+
+  // Get settings of elements specified in the settings page
+  $selectors_from_settings = variable_get('scream_zeroclipboard_selectors', array());
+  $settingdata['selectorsToProcess'] = $selectors_from_settings['selectorslist'];
+  $settingdata['copiedtext'] = $selectors_from_settings['textsplash'];
+
+  // @TODO: Make it possible for other modules to hook in, and declare elements to be processed with ZeroClipboard
+
+  drupal_add_js(array('scream_zeroclipboard_settings' => $settingdata), 'setting');
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function scream_zeroclipboard_menu() {
+  $items = array();
+
+  $items['admin/config/services/scream_zeroclipboard'] = array(
+    'title'            => 'Scream Zero Clipboard',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('scream_zeroclipboard_settings_form'),
+    'access arguments' => array('administer scream zeroclipboard'),
+  );
+  return $items;
+}
+
+/**
+ * The settings form builder, used in admin/settings/zeroclipboard.
+ */
+function scream_zeroclipboard_settings_form() {
+  $form = array();
+  $defaults = variable_get('scream_zeroclipboard_selectors', array());
+  $form['text_splash'] = array(
+	'#type'			 => 'textfield',
+	'#title'		 => t('Text for splash'),
+	'#description'	 => t('Set text which inform that fragment copied to clipboard successful'),
+	'#default_value' => isset($defaults['textsplash']) ? $defaults['textsplash'] : 'Copied to clipbloard successful!',
+  );
+  $form['selectors'] = array(
+    '#type'          => 'textarea',
+    '#title'         => t('Selectors To Process'),
+    '#rows'          => 5,
+    '#description'   => t('Use the notation [element_selector]|[value_to_copy_to_clipboard]. Add each selector on a separate line.'."<br>" . "Example: button[name=copy_from]|textarea#text_to_copy"),
+    '#default_value' => _scream_zeroclipboard_array_to_text($defaults['selectorslist']),
+  );
+
+  $form['save'] = array(
+    '#type'          => 'submit',
+    '#value'         => t('Save'),
+    '#submit'        => array('scream_zeroclipboard_settings_form_save_submit'),
+  );
+
+  return $form;
+}
+
+/**
+ * The submit handler for the settings form.
+ */
+function scream_zeroclipboard_settings_form_save_submit($form, &$form_state) {
+  $selectors_to_save = _scream_zeroclipboard_text_to_array($form_state['values']['selectors']);
+  $copiedtext = $form_state['values']['text_splash'];
+  variable_set('scream_zeroclipboard_selectors', array('selectorslist' => $selectors_to_save,'textsplash' => $copiedtext));
+
+  drupal_set_message(t('Scream Zero Clipboard settings have been saved.'));
+}
+
+/**
+ * Helper function to convert the selectors text in the settings form to a structured array
+ */
+function _scream_zeroclipboard_text_to_array($text) {
+  $new_selectors_values = explode("\n", str_replace("\r", '', $text));
+
+  $selectors = array();
+  foreach ($new_selectors_values as $new_selectors_value) {
+    $data_pair = explode('|', $new_selectors_value);
+    if ($data_pair[0] && $data_pair[1]) {
+      $selectors[] = array('selector' => $data_pair[0], 'value' => $data_pair[1]);
+    }
+  }
+
+  return $selectors;
+}
+
+/**
+ * Helper function to convert the structured array of selectors to text to use as a default value in the settings form.
+ */
+function _scream_zeroclipboard_array_to_text($structured_selectors = array()) {
+  $text = '';
+
+  foreach ($structured_selectors as $structured_selector) {
+    $text .= $structured_selector['selector'] . '|' . $structured_selector['value'] . "\r\n";
+  }
+
+  return $text;
+}

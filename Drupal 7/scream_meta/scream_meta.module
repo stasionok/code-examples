@@ -1,0 +1,111 @@
+<?php
+/**
+ * Implements hook_permission().
+ */
+function scream_meta_permission() {
+  return array(
+    'administer scream meta module' => array(
+      'title' => t('Administer scream meta module'),
+      'description' => t('Allow to set Meta\'s and Title for pages.'),
+    ),
+  );
+}
+
+function scream_meta_menu() {
+$items = array();
+$items['admin/config/search/metas'] = array(
+		'title' => 'Set meta and title',
+		'description' => 'Views are customized lists of content on your system; they are highly configurable and give you control over how lists of content are presented.',
+		'access arguments' => array('administer scream meta module'),
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('scream_meta_form'),
+		'type' => MENU_NORMAL_ITEM,
+  ); 
+  return $items;
+}
+
+function scream_meta_form($form, &$form_state) {
+  $form['url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL'),
+    '#description' => t('Enter full! URL where need to set title and metas. Example: http://mysite.com/node/1 or http://mysite.com/alias_for_page'),
+  );
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#description' => t('Enter node title.'),
+  );
+  $form['metakw'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Meta keyword'),
+    '#description' => t('Enter node Meta Keyword.'),
+  );
+  $form['metadc'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Meta Description'),
+    '#description' => t('Enter node Meta Description.'),
+    '#maxlength' => 255,
+  );
+  $form['submitifhave'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Confirm rewrite'),
+    // '#attributes' => array('style' => 'visibility:hidden;'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+    '#submit' => array('scream_meta_submit'),
+    '#validate' => array('scream_meta_validate'),
+  );
+  return $form;
+}
+function scream_meta_validate($form, &$form_state) {
+	$name = $form_state['values']['url'];
+	if (!$name) 								{form_error($form['url'], t('Must have value')); }
+	if (!strstr($name,$_SERVER['HTTP_HOST'])) {form_error($form['url'], t('URL must be from current server')); return;}
+	$arr = array();
+	$urlpart= 0;
+	$arr = explode("/", $name);
+	while (($arr[$urlpart] !=$_SERVER['HTTP_HOST']) && ($urlpart < count($arr))){$urlpart++;}
+	for ($i=$urlpart+1;$i<count($arr);$i++) {$path[] = $arr[$i];}
+	$path = implode("/",$path);
+	// form_error($form['url'],$path );
+	$form_state['values']['npath'] = drupal_get_normal_path($path); //indent (path) to node
+	$path = drupal_get_normal_path($path);
+	// form_error($form['title'],$path );
+	$result = db_query("SELECT * from scream_meta WHERE pageid= :path", array(':path' => $path));
+	if (!$result) {form_error($form['submit'], t('Can\'t execute db_query on validation'));return;}
+	$row = $result->fetchObject();
+	if ((!$form_state['values']['submitifhave']) && $row) {
+		$text = "<b>&emsp;title = ". $row->pagetitle . "<br>" . "&emsp;meta keywords = " .  $row->metakw . "<br>" . "&emsp;meta description = " .  $row->metadescr . "</b><br>";
+		form_error($form['url'], t('URL always have Meta\'s and title:'). "<br>" . $text . t('Check Confirm to rewrite.'));
+	 }
+	unset($path);
+	unset($urlpart);
+	unset($arr);
+}
+
+function scream_meta_submit($form, &$form_state) {
+	$path = $form_state['values']['npath'];
+	$pagetitle = $form_state['values']['title'];
+	$metakw = $form_state['values']['metakw'];
+	$metadescr = $form_state['values']['metadc'];
+
+	$result = db_query("INSERT INTO scream_meta (pageid,pagetitle,metakw,metadescr) VALUES (:path,:pagetitle,:metakw,:metadescr) ON DUPLICATE KEY UPDATE pagetitle=:pagetitle, metakw=:metakw, metadescr=:metadescr",array(':path' => $path,':pagetitle' => $pagetitle, ':metakw' => $metakw, ':metadescr' => $metadescr));
+	if (!$result) {drupal_set_message(t('Can\'t execute db_query on add in submit'),'error');}
+	drupal_set_message(t('Meta\'s and Title succesfull added or updated'));
+	$form_state['redirect'] ='admin/config/search/metas';
+} 
+
+function scream_meta_preprocess_page(&$variables) {
+	$path = drupal_get_normal_path(substr($_SERVER['REQUEST_URI'],1));
+	$result = db_query("SELECT * from scream_meta WHERE pageid= :path",array(':path' =>$path));
+	if (!$result) {drupal_set_message(t('Can\'t execute db_query on add in prerpocess'),'error');}
+	$row = $result->fetchObject();
+	if ($row) {
+		if (($row->pagetitle) && ($row->pagetitle != "")) {drupal_set_title($row->pagetitle);}
+		if (($row->metakw) && ($row->metakw != "")) {drupal_add_html_head(array('#tag' => 'meta', '#attributes' => array('name' => 'keywords', 'content' => $row->metakw,),), 'metakw');}
+		if (($row->metadescr) && ($row->metadescr != "")) {drupal_add_html_head(array('#tag' => 'meta', '#attributes' => array('name' => 'description', 'content' => $row->metadescr,),), 'metadescr');}
+	}
+
+}

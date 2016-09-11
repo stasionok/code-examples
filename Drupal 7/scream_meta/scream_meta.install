@@ -1,0 +1,41 @@
+<?php
+function scream_meta_schema() {
+  $schema = array();
+
+  $schema['scream_meta'] = array(
+    'description' => 'Meta\'s and Title for node.',
+    'fields' => array(
+      'pageid' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'pagetitle' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+	  'metakw' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+	  'metadescr' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('pageid'),
+  ); 
+
+  return $schema; 
+}
+
+// function scream_meta_install() {
+	// drupal_install_schema('scream_meta');
+// }
+
+// function scream_meta_uninstall() {
+	// drupal_uninstall_schema('scream_meta');
+// }

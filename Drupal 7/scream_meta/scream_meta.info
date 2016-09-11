@@ -1,0 +1,10 @@
+; $Id$ 
+name = Scream Meta
+description = Lets set title and meta's for particular node.
+package = Scream
+core = 7.x 
+version = 7.x-0.as-alpha-as-it-gets 
+
+files[] = scream_meta.module 
+
+configure = admin/config/search/metas

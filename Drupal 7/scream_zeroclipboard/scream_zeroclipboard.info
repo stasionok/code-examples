@@ -1,0 +1,10 @@
+name = "Scream Zero Clipboard"
+description = "Loads Zero Clipboard v2 javascript and swf files to allow copying text to clipboard."
+package = "Scream"
+core = 7.x
+dependencies[] = libraries
+version = "7.x-1.0+0-dev"
+core = "7.x"
+project = "scream_zeroclipboard"
+datestamp = "1382797891"
+
